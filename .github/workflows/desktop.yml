@@ -1,0 +1,58 @@
+name: Habblaud Desktop
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.12'
+          cache: npm
+
+      - name: Habblaud (server + client)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Aplicația desktop
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Habblaud-Setup
+          path: desktop/release/*.exe
+          if-no-files-found: error
+
+      - name: Release „desktop-latest”
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete desktop-latest --yes --cleanup-tag || true
+          gh release create desktop-latest desktop/release/*.exe \
+            --target "${GITHUB_SHA}" \
+            --prerelease \
+            --title "Habblaud Desktop (ultima versiune)" \
+            --notes "Construit automat din ${GITHUB_SHA::7}. Descarcă Habblaud-Setup-*.exe și instalează."

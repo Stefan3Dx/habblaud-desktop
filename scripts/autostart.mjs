@@ -1,5 +1,5 @@
 // Hook SessionStart: pornește Habblaud dacă nu rulează deja. Nu scrie nimic pe stdout (ar intra în context).
-// Dacă există aplicația desktop (desktop/out/Habblaud-win32-x64/Habblaud.exe) o deschide pe ea; altfel pornește
+// Dacă e instalat Habblaud Desktop îl deschide pe el; altfel pornește
 // serverul ascuns. Instalare: npm run autostart:install
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, statSync, writeFileSync } from 'node:fs';
@@ -36,8 +36,9 @@ export function cleanEnv(env) {
   return out;
 }
 
-export function desktopExe(root = ROOT) {
-  const p = join(root, 'desktop', 'out', 'Habblaud-win32-x64', 'Habblaud.exe');
+export function desktopExe() {
+  // Habblaud Desktop instalat (NSIS, per utilizator).
+  const p = join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Programs', 'Habblaud', 'Habblaud.exe');
   return existsSync(p) ? p : undefined;
 }
 

@@ -199,6 +199,8 @@ async function call(base, method, path, body, timeoutMs) {
 /** Decide o pedido (ou não). Devolve a saída a imprimir, ou undefined. Nunca lança. */
 export async function run(argv = process.argv.slice(2), env = process.env, stdinText) {
   try {
+    // Sesiunile pornite de Habblaud Desktop răspund la permisiuni în chat-ul aplicației.
+    if (env.HABBLAUD_NO_PERMISSION_HOOK === '1') return undefined;
     const opts = parseOptions(argv, env);
     const raw = stdinText ?? (await readStdin());
     if (!raw) return undefined;

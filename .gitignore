@@ -8,3 +8,7 @@ scripts/assets/.cache/
 
 # Configurações locais do Claude Code e caches de geração
 .claude/
+
+# Habblaud Desktop
+desktop/build/
+desktop/release/

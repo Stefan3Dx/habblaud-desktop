@@ -46,7 +46,9 @@
     "remote:mdns": "tsx scripts/remote-mdns.ts",
     "release": "tsx scripts/release.ts",
     "autostart:install": "node scripts/autostart-install.mjs install",
-    "autostart:uninstall": "node scripts/autostart-install.mjs uninstall"
+    "autostart:uninstall": "node scripts/autostart-install.mjs uninstall",
+    "desktop": "npm run build && npm --prefix desktop install && npm --prefix desktop start",
+    "dist": "npm run build && npm --prefix desktop install && npm --prefix desktop run dist"
   },
   "devDependencies": {
     "@fontsource/pixelify-sans": "^5.3.0",
