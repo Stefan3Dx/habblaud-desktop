@@ -10,6 +10,12 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Interface em romeno** (Configurações › Idioma › Română).
+- **Habblaud Desktop** (`desktop/`): aplicativo Windows com chat do Claude Code (imagens, vídeo, PDF e arquivos) e o
+  escritório do Habblaud ao lado. Instalador em Releases › desktop-latest.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
