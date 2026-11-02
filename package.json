@@ -44,7 +44,9 @@
     "codex:bridge": "tsx scripts/codex-bridge.ts",
     "remote:setup": "tsx scripts/remote-setup.ts",
     "remote:mdns": "tsx scripts/remote-mdns.ts",
-    "release": "tsx scripts/release.ts"
+    "release": "tsx scripts/release.ts",
+    "autostart:install": "node scripts/autostart-install.mjs install",
+    "autostart:uninstall": "node scripts/autostart-install.mjs uninstall"
   },
   "devDependencies": {
     "@fontsource/pixelify-sans": "^5.3.0",
