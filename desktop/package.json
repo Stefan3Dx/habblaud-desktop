@@ -74,6 +74,11 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Habblaud",
       "artifactName": "Habblaud-Setup-${version}.${ext}"
-    }
+    },
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Stefan3Dx/habblaud-desktop.git"
   }
 }
