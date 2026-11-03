@@ -7,6 +7,7 @@ import type { RoomState } from '../sim/room-state';
 import type { WallArtAsset, WorldAssets } from '../assets';
 import type { SeasonalTheme } from '../api';
 import { decorateSeasonalRug, decorateSeasonalWall, seasonalRugColor, seasonalWallStyle } from './seasonal';
+import { drawFarmGround, drawFarmPlot, farmFloor } from './farm';
 
 /** Margem acima da área no cache de paredes (itens que passam do topo da face). */
 export const WALL_MARGIN = 16;
@@ -218,14 +219,18 @@ export function buildAreaVis(art: ArtModule, layout: AreaLayout, room: RoomState
   fctx.translate(-px.x, -px.y);
   for (const f of layout.floors) {
     try {
-      art.drawFloor(fctx, f.kind, f.x, f.y, f.w, f.h, { seed: f.seed, tint: f.tint, tint2: f.tint2 });
+      drawThemedFloor(art, fctx, f, theme, layout.kind);
     } catch {
       fctx.fillStyle = '#d9dde2';
       fctx.fillRect(f.x, f.y, f.w, f.h);
     }
   }
-  if (layout.floorTint) tintFloor(fctx, px, layout.floorTint);
+  if (layout.floorTint && theme !== 'farm') tintFloor(fctx, px, layout.floorTint);
   for (const rug of layout.rugs) {
+    if (theme === 'farm') {
+      drawFarmPlot(fctx, rug, rug.seed);
+      continue;
+    }
     const color = seasonalRugColor(theme, rug.color);
     try {
       art.drawRug(fctx, rug.x, rug.y, rug.w, rug.h, color, rug.seed);
@@ -288,11 +293,18 @@ export function toWallVis(it: WallItemPlacement, areaId: string): WallVis {
   return { id: it.id, kind: it.kind, variant: it.variant, seed: hash32(it.id), cx: it.cx, baseY: it.baseY, on: it.on, order: it.order, areaId };
 }
 
+/** Piso de uma área no tema (a fazenda troca carpete por campo, cimento por terra e mármore por pedras). */
+function drawThemedFloor(art: ArtModule, ctx: CanvasRenderingContext2D, f: AreaLayout['floors'][number], theme: SeasonalTheme, area?: AreaLayout['kind']): void {
+  const kind = theme === 'farm' ? farmFloor(f.kind, area) : f.kind;
+  if (kind === 'dirt' || kind === 'cobble') drawFarmGround(ctx, kind, f.x, f.y, f.w, f.h, f.seed);
+  else art.drawFloor(ctx, kind, f.x, f.y, f.w, f.h, { seed: f.seed, tint: f.tint, tint2: f.tint2 });
+}
+
 /** Desenha paredes e piso de um conjunto de segmentos/pisos num contexto já transformado (camada base). */
-export function paintShell(art: ArtModule, ctx: CanvasRenderingContext2D, floors: AreaLayout['floors'], walls: WallSegment[]): void {
+export function paintShell(art: ArtModule, ctx: CanvasRenderingContext2D, floors: AreaLayout['floors'], walls: WallSegment[], theme: SeasonalTheme = 'none'): void {
   for (const f of floors) {
     try {
-      art.drawFloor(ctx, f.kind, f.x, f.y, f.w, f.h, { seed: f.seed, tint: f.tint, tint2: f.tint2 });
+      drawThemedFloor(art, ctx, f, theme);
     } catch {
       ctx.fillStyle = '#9fc77f';
       ctx.fillRect(f.x, f.y, f.w, f.h);

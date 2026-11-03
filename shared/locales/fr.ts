@@ -2158,7 +2158,7 @@ export const FR: Readonly<Record<string, string>> = {
   "Tema do escritório": "Thème du bureau",
   "Natal": "Noël",
   "Halloween": "Halloween",
-  "Automático: Halloween em outubro e Natal de 1º de novembro a 26 de dezembro; no resto do ano, o visual original. Nenhum: sempre o original.": "Automatique : Halloween en octobre et Noël du 1er novembre au 26 décembre ; le reste de l'année, l'apparence d'origine. Aucun : toujours l'original.",
+  "Automático: Halloween em outubro e Natal de 1º de novembro a 26 de dezembro; no resto do ano, o visual original. Nenhum: sempre o original. Fazenda: campo, celeiro e canteiros de flores (só neste computador).": "Automatique : Halloween en octobre et Noël du 1er novembre au 26 décembre ; le reste de l'année, l'apparence d'origine. Aucun : toujours l'original. Ferme : champs, grange et massifs de fleurs (sur cet ordinateur seulement).",
   "Os textos das atividades vêm do servidor: seguem HABBLAUD_LANG ou o idioma do sistema onde o Habblaud roda (o inglês, só com HABBLAUD_LANG=en).": "Les textes d'activité viennent du serveur : ils suivent HABBLAUD_LANG ou la langue du système où tourne Habblaud (l'anglais, seulement avec HABBLAUD_LANG=en).",
   "Aparência": "Apparence",
 
@@ -3290,4 +3290,5 @@ export const FR: Readonly<Record<string, string>> = {
   "Carimbo deixado na portaria: {0}": "Tampon laissé à l'accueil : {0}",
   "Entre no prédio ou chegue mais perto da porta para carimbar.": "Entrez dans l'immeuble ou approchez-vous de la porte pour tamponner.",
   "O carimbo não foi deixado. Tente de novo.": "Le tampon n'a pas été laissé. Réessayez.",
+  "Fazenda": "Ferme",
 };

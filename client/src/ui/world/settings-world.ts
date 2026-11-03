@@ -375,9 +375,11 @@ export class WorldSettingsGroup {
    */
   private syncTheme(st: WorldStatus, askedAt: number): void {
     if (!this.themeLinked || st.state !== 'approved' || this.themeInflight > 0 || askedAt < this.themePickedAt) return;
+    // A fazenda é só deste computador: para o prédio ela vale como o visual original ('none').
     const pref = this.ctx.prefs.theme;
-    if (st.theme && st.theme !== pref) this.ctx.updatePrefs({ theme: st.theme });
-    else if (!st.theme && pref !== 'auto') void this.onThemePicked(pref);
+    const sent = pref === 'farm' ? 'none' : pref;
+    if (st.theme && st.theme !== sent) this.ctx.updatePrefs({ theme: st.theme });
+    else if (!st.theme && sent !== 'auto') void this.onThemePicked(sent);
   }
 
   /** Volta ao topo do corpo rolável da janela (a cada tela nova, o começo dela é o que importa). */

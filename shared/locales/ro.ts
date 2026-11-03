@@ -573,7 +573,7 @@ export const RO: Readonly<Record<string, string>> = {
   "Tema do escritório": "Tema biroului",
   "Natal": "Crăciun",
   "Halloween": "Halloween",
-  "Automático: Halloween em outubro e Natal de 1º de novembro a 26 de dezembro; no resto do ano, o visual original. Nenhum: sempre o original.": "Automat: Halloween în octombrie și Crăciun între 1 noiembrie și 26 decembrie; în restul anului, aspectul original. Niciuna: mereu originalul.",
+  "Automático: Halloween em outubro e Natal de 1º de novembro a 26 de dezembro; no resto do ano, o visual original. Nenhum: sempre o original. Fazenda: campo, celeiro e canteiros de flores (só neste computador).": "Automat: Halloween în octombrie și Crăciun între 1 noiembrie și 26 decembrie; în restul anului, aspectul original. Niciuna: mereu originalul. Fermă: câmp, hambar și straturi de flori (doar pe acest calculator).",
   "Idioma da interface": "Limba interfeței",
   "Os textos das atividades vêm do servidor: seguem HABBLAUD_LANG ou o idioma do sistema onde o Habblaud roda (o inglês, só com HABBLAUD_LANG=en).": "Textele de activitate vin de la server: urmează HABBLAUD_LANG sau limba sistemului pe care rulează Habblaud (doar engleză cu HABBLAUD_LANG=en).",
   "Dados": "Date",
@@ -2983,4 +2983,5 @@ export const RO: Readonly<Record<string, string>> = {
   "Carimbo deixado na portaria: {0}": "Ștampilă lăsată la recepție: {0}",
   "Entre no prédio ou chegue mais perto da porta para carimbar.": "Intră în clădire sau apropie-te de ușă ca să lași o ștampilă.",
   "O carimbo não foi deixado. Tente de novo.": "Ștampila nu a fost lăsată. Încearcă din nou.",
+  "Fazenda": "Fermă",
 };

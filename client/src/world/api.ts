@@ -17,18 +17,23 @@ export interface WorldOptions {
   dayNight: boolean;
   /** (Opcional, aditivo) Ciclo dia/noite: automático, sempre dia ou sempre noite. Vale sobre `dayNight`. */
   daylight?: DaylightMode;
-  /** Tema visual: automático (segue o calendário; ver seasonalThemeFor), nenhum, Natal ou Halloween. */
+  /** Tema visual: automático (segue o calendário; ver seasonalThemeFor), nenhum, Natal, Halloween ou Fazenda. */
   theme?: OfficeTheme;
 }
 
-/** Tema que o renderer desenha: o escritório original ('none') ou um dos sazonais. */
-export type SeasonalTheme = 'none' | 'christmas' | 'halloween';
+/**
+ * Tema que o renderer desenha: o escritório original ('none'), um dos sazonais ou a fazenda ('farm': campo, celeiro,
+ * canteiros de flores no lugar das mesas). A fazenda é só deste computador: o prédio no World recebe 'none'.
+ */
+export type SeasonalTheme = 'none' | 'christmas' | 'halloween' | 'farm';
 export type OfficeTheme = 'auto' | SeasonalTheme;
 
 /**
  * Tema desenhado numa data (hora local). No automático: Halloween de 1º a 31 de outubro, Natal de 1º de novembro a
  * 26 de dezembro e, no resto do ano, o escritório original.
  */
+export function seasonalThemeFor(theme: Exclude<OfficeTheme, 'farm'> | undefined, date: Date): Exclude<SeasonalTheme, 'farm'>;
+export function seasonalThemeFor(theme: OfficeTheme | undefined, date: Date): SeasonalTheme;
 export function seasonalThemeFor(theme: OfficeTheme | undefined, date: Date): SeasonalTheme {
   if (theme && theme !== 'auto') return theme;
   const month = date.getMonth();

@@ -13,6 +13,9 @@ do meio (0.**3**.0).
 ### Adicionado
 
 - **Interface em romeno** (Configurações › Idioma › Română).
+- **Tema Fazenda** (Configurações › Aparência › Tema do escritório): as salas viram campo, o corredor uma estrada de
+  terra e as paredes um celeiro; mesas viram canteiros de flores, cadeiras tocos, sofás fardos de feno e divisórias
+  cercas, e os agentes usam chapéu de palha. Só neste computador: o prédio no World continua com o visual original.
 - **Habblaud Desktop** (`desktop/`): aplicativo Windows com chat do Claude Code (imagens, vídeo, PDF e arquivos) e o
   escritório do Habblaud ao lado. Instalador em Releases › desktop-latest.
 

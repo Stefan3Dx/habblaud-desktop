@@ -22,6 +22,7 @@ import { Particles } from './particles';
 import { carSprite, propSprite, shadowSprite } from './props';
 import { countBadge, fallbackIcon } from './shell-sprites';
 import { decorateElevator, drawSeasonalLights, drawSeasonalWindow, seasonalCostume, seasonalFurniture } from './seasonal';
+import { farmFurniture } from './farm';
 import { buildAreaVis, furnitureSprites, opaqueBounds, paintShell, toWallVis, WALL_MARGIN, wallItemOrigin, wallSprites, type AreaVis, type FurnVis, type WallVis } from './scene';
 
 const enum K {
@@ -185,11 +186,11 @@ export class Renderer {
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
     ctx.translate(-this.baseX, -this.baseY);
-    paintShell(this.art, ctx, this.exterior.floors, []);
+    paintShell(this.art, ctx, this.exterior.floors, [], this.theme);
     // faixas da rua
     const ly = this.exterior.streetY + Math.round(this.exterior.streetH / 2) - 1;
     ctx.fillStyle = 'rgba(255,236,170,0.75)';
-    for (let x = this.baseX + 4; x < this.baseX + c.width; x += 24) ctx.fillRect(x, ly, 12, 2);
+    if (this.theme !== 'farm') for (let x = this.baseX + 4; x < this.baseX + c.width; x += 24) ctx.fillRect(x, ly, 12, 2);
     this.shells = [];
     this.shellWindows = [];
     for (let col = CORE_COLS; col < cols; col++) {
@@ -761,7 +762,8 @@ export class Renderer {
   private drawFurniture(f: FurnVis, area: AreaVis, scale: number, front: boolean, now: number): void {
     const { ctx } = this;
     const state = this.furnState(f, now);
-    const fs = furnitureSprites(this.art, f, state);
+    const farm = this.theme === 'farm' ? farmFurniture(f.kind, f.variant, f.seed) : null;
+    const fs = farm ?? furnitureSprites(this.art, f, state);
     if (!fs) return;
     const s = front ? fs.front : seasonalFurniture(this.theme, f.kind, area.layout, f.seed) ?? fs.base;
     if (!s) return;

@@ -1503,6 +1503,16 @@ function drawCostume(dc: Dc, costume: CharacterFrameRequest['costume']): void {
     b.hline(x + 3, x + 9, y + 4, '#e9a548');
     b.rect(x - 1, y + 5, 15, 2, '#372641');
     b.set(x + 7, y + 4, '#ffe0a3');
+  } else if (costume === 'farmer') {
+    // Chapéu de palha de aba larga, com fita.
+    b.rect(x + 3, y - 1, 8, 4, '#e2c065');
+    b.hline(x + 4, x + 9, y - 1, '#f0d78c');
+    b.set(x + 5, y, '#cfa94e');
+    b.set(x + 8, y + 1, '#cfa94e');
+    b.hline(x + 3, x + 10, y + 2, '#b8463c');
+    b.rect(x - 1, y + 3, 16, 2, '#d6b04f');
+    b.hline(x - 1, x + 14, y + 3, '#ecd17a');
+    b.hline(x, x + 13, y + 4, '#b08a32');
   } else if (costume === 'pumpkin') {
     b.rect(x + 6, y - 2, 2, 3, '#47754b');
     b.rect(x + 2, y + 1, 10, 4, '#ed963c');

@@ -21,13 +21,14 @@ function prop(kind: SeasonalProp): Sprite {
 
 export function seasonalCostume(theme: SeasonalTheme, seed: number): CharacterFrameRequest['costume'] {
   if (theme === 'christmas') return 'santa';
+  if (theme === 'farm') return 'farmer';
   if (theme === 'halloween') return (['witch', 'pumpkin', 'vampire'] as const)[(seed >>> 0) % 3];
   return undefined;
 }
 
 /** Reutiliza footprints de plantas: nenhuma nova colisão ou mudança de caminhos. */
 export function seasonalFurniture(theme: SeasonalTheme, kind: FurnitureKind, area: AreaLayout, seed: number): Sprite | null {
-  if (theme === 'none' || area.kind === 'restroom') return null;
+  if (theme === 'none' || theme === 'farm' || area.kind === 'restroom') return null;
   if (kind === 'plant_tall') {
     const first = area.furniture.find((f) => f.kind === 'plant_tall');
     if (!first || hash32(first.id) !== seed) return null;
@@ -38,17 +39,20 @@ export function seasonalFurniture(theme: SeasonalTheme, kind: FurnitureKind, are
 }
 
 export function seasonalRugColor(theme: SeasonalTheme, original: string): string {
+  if (theme === 'farm') return '#6e4a33';
   return theme === 'christmas' ? '#a93649' : theme === 'halloween' ? '#60416f' : original;
 }
 
 export function seasonalWallStyle(theme: SeasonalTheme, original: WallStyle): WallStyle {
   if (theme === 'none' || original.pattern === 'glass') return original;
+  // Fazenda: tábuas de celeiro (vermelho nas salas, madeira crua no resto) com acabamento claro.
+  if (theme === 'farm') return { ...original, base: original.exterior ? '#9a6a45' : '#b5533c', trim: '#efe2c8', pattern: 'wood_panel' };
   return { ...original, base: mix(original.base, theme === 'christmas' ? '#ffe3b4' : '#bc97d1', 0.18), trim: theme === 'christmas' ? '#4e7756' : '#725486' };
 }
 
 /** Motivos de tapete (cacheados junto com o piso). */
 export function decorateSeasonalRug(ctx: CanvasRenderingContext2D, theme: SeasonalTheme, rug: { x: number; y: number; w: number; h: number }): void {
-  if (theme === 'none') return;
+  if (theme === 'none' || theme === 'farm') return;
   const x = Math.round(rug.x), y = Math.round(rug.y), w = Math.floor(rug.w), h = Math.floor(rug.h);
   if (w < 25 || h < 16) return;
   ctx.save();
@@ -79,6 +83,10 @@ export function decorateSeasonalRug(ctx: CanvasRenderingContext2D, theme: Season
 /** Enfeites no alto da parede, longe das telas e placas. Os vãos ficam livres. */
 export function decorateSeasonalWall(ctx: CanvasRenderingContext2D, theme: SeasonalTheme, wall: WallSegment): void {
   if (theme === 'none' || wall.kind !== 'face') return;
+  if (theme === 'farm') {
+    decorateFarmWall(ctx, wall);
+    return;
+  }
   ctx.save();
   const x0 = Math.round(wall.x + 3), end = Math.floor(wall.x + wall.w - 3), y = Math.round(wall.y + 5);
   for (let x = x0; x < end; x++) {
@@ -119,9 +127,33 @@ export function decorateSeasonalWall(ctx: CanvasRenderingContext2D, theme: Seaso
   ctx.restore();
 }
 
+/** Trepadeira com flores no alto da parede do celeiro; os vãos ficam livres. */
+function decorateFarmWall(ctx: CanvasRenderingContext2D, wall: Extract<WallSegment, { kind: 'face' }>): void {
+  const colors = ['#f07b6e', '#f5a3c8', '#ffe27a', '#b993ea', '#ffffff'];
+  ctx.save();
+  const x0 = Math.round(wall.x + 2), end = Math.floor(wall.x + wall.w - 2), y = Math.round(wall.y + 3);
+  for (let x = x0; x < end; x++) {
+    if (wall.doorways?.some((d) => x >= d.x - 1 && x < d.x + d.w + 1)) continue;
+    const wave = Math.round(Math.sin((x - x0) / 5) * 1.5);
+    ctx.fillStyle = (x - x0) % 3 === 0 ? '#4f9443' : '#356b34';
+    ctx.fillRect(x, y + wave, 1, 2);
+    if ((x - x0) % 7 === 3) {
+      ctx.fillStyle = '#77bd58';
+      ctx.fillRect(x, y + wave + 2, 2, 1);
+    }
+    if ((x - x0) % 13 === 6) {
+      ctx.fillStyle = colors[Math.abs(Math.floor(x * 7 + wall.y)) % colors.length];
+      ctx.fillRect(x - 1, y + wave - 1, 3, 3);
+      ctx.fillStyle = '#ffd36a';
+      ctx.fillRect(x, y + wave, 1, 1);
+    }
+  }
+  ctx.restore();
+}
+
 /** Guirlandas nas molduras dos elevadores (sem cobrir a porta animada). */
 export function decorateElevator(ctx: CanvasRenderingContext2D, theme: SeasonalTheme, x: number, y: number): void {
-  if (theme === 'none') return;
+  if (theme === 'none' || theme === 'farm') return;
   const sprite = prop(theme === 'christmas' ? 'wreath' : 'bat');
   ctx.drawImage(sprite.canvas, Math.round(x - sprite.ax), Math.round(y - 19 - sprite.ay));
 }
@@ -145,7 +177,7 @@ function glowSprite(theme: SeasonalTheme): HTMLCanvasElement {
 
 /** Luz decorativa suave, limitada à face da parede. Não interfere com salas apagadas. */
 export function drawSeasonalLights(ctx: CanvasRenderingContext2D, theme: SeasonalTheme, layout: AreaLayout, light: number): void {
-  if (theme === 'none' || light <= 0.01) return;
+  if (theme === 'none' || theme === 'farm' || light <= 0.01) return;
   ctx.save();
   for (const wall of layout.walls) {
     if (wall.kind !== 'face') continue;
