@@ -21,8 +21,11 @@ export function farmFloor(kind: FloorKind, area?: string): FarmFloor {
       return 'dirt';
     case 'sidewalk':
       return 'grass';
+    case 'tile_check':
+    case 'tile_white':
+      return 'wood'; // copa e banheiro: assoalho de celeiro
     default:
-      return kind; // madeira (celeiro), copa e banheiro ficam
+      return kind;
   }
 }
 
@@ -117,13 +120,13 @@ function toSprite(s: BufSprite): Sprite {
 const cache = new Map<string, FurnitureSprites | null>();
 
 /** Sprites de fazenda de um móvel (cache por kind/variante/semente); null = fica o do escritório. */
-export function farmFurniture(kind: FurnitureKind, variant: string | undefined, seed: number): FurnitureSprites | null {
-  const key = `${kind}|${variant ?? ''}|${Math.abs(Math.floor(seed)) % 997}`;
+export function farmFurniture(kind: FurnitureKind, variant: string | undefined, seed: number, state = 0): FurnitureSprites | null {
+  const key = `${kind}|${variant ?? ''}|${Math.abs(Math.floor(seed)) % 997}|${state}`;
   if (cache.has(key)) return cache.get(key)!;
   let out: FurnitureSprites | null = null;
   try {
-    const f = renderFarmFurniture(kind, variant, seed);
-    if (f) out = { base: toSprite(f.base) };
+    const f = renderFarmFurniture(kind, variant, seed, state);
+    if (f) out = { base: toSprite(f.base), front: f.front ? toSprite(f.front) : undefined };
   } catch {
     out = null;
   }

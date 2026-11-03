@@ -111,12 +111,13 @@ function flowerBed(seed: number, low: boolean): BufFurniture {
   b.rect(1, 8, 2, 6, WOOD.dk);
   b.rect(29, 8, 2, 6, WOOD.dk);
   // flores em duas fileiras
-  const basket = seed % 3 === 0;
+  // O cesto das flores colhidas é desenhado por cima, pelo renderer (enche com o trabalho do agente).
+  const basket = false;
   const kind = seed % 4; // 0 mista, 1 tulipas, 2 girassóis, 3 lavanda
   const maxH = low ? 6 : 11;
   for (let row = 0; row < 2; row++) {
     const base = row === 0 ? 2 : 5;
-    for (let x = 4 + row * 2; x < (basket ? 23 : 29); x += 4) {
+    for (let x = 4 + row * 2; x < 23; x += 4) {
       const h = 3 + Math.floor(r() * (maxH - 3)) - row;
       const top = base - h;
       if (kind === 1) tulip(b, x, base, top, pickFlower(r));
@@ -448,7 +449,212 @@ function fence(variant: string | undefined): BufFurniture {
   return { base: s };
 }
 
-function build(kind: FurnitureKind, variant: string | undefined, seed: number): BufFurniture | null {
+// ------------------------------------------------------------------ copa, banheiro, recepção
+
+function woodCounter(seed: number, top: (b: PixelBuf) => void, up = 8): BufFurniture {
+  const s = floorSheet(1, 1, up);
+  const b = s.buf;
+  contact(b, 0, 12, 16, 3, 0.2);
+  b.rect(0, 0, 16, 5, WOOD.lt);
+  b.hline(0, 15, 0, WOOD.hi);
+  planks(b, 0, 5, 16, 9, seed);
+  b.vline(0, 5, 13, WOOD.dk);
+  b.vline(15, 5, 13, WOOD.dd);
+  top(b);
+  b.outline();
+  return { base: s };
+}
+
+function jars(b: PixelBuf): void {
+  for (const [x, c] of [[2, '#e46aa6'], [7, '#f2c443'], [11, '#d94848']] as const) {
+    b.rect(x, -4, 4, 5, '#d8e6ea');
+    b.rect(x + 1, -2, 2, 3, c);
+    b.hline(x, x + 3, -5, WOOD.dk);
+  }
+}
+
+function eggBasket(b: PixelBuf): void {
+  b.rect(3, -3, 10, 4, '#c08a4a');
+  b.hline(3, 12, -3, '#e0b071');
+  for (const x of [4, 7, 10]) b.ellipse(x + 0.5, -4, 1.5, 1.5, '#f6efe2');
+  b.set(5, -5, '#ffffff');
+}
+
+function basinPump(b: PixelBuf): void {
+  b.rect(2, -1, 12, 4, '#8f9aa3');
+  b.rect(3, 0, 10, 2, '#6aa0d0');
+  b.hline(4, 9, 0, '#a7cdee');
+  b.rect(12, -9, 2, 9, '#3d6b5a');
+  b.rect(9, -9, 4, 2, '#3d6b5a');
+  b.line(13, -9, 15, -13, '#3d6b5a');
+}
+
+function stove(state: number): BufFurniture {
+  const s = floorSheet(1, 1, 14);
+  const b = s.buf;
+  contact(b, 0, 12, 16, 3, 0.22);
+  b.rect(1, -1, 14, 14, '#3a3b40');
+  b.hline(1, 14, -1, '#5d5f66');
+  b.rect(3, 5, 10, 6, '#26272b');
+  b.rect(4, 6, 8, 4, state ? '#e8742c' : '#4a3a30');
+  if (state) b.hline(5, 10, 8, '#ffd36a');
+  b.rect(10, -10, 2, 9, '#2c2d31'); // chaminé
+  // chaleira
+  b.rect(3, -5, 7, 4, '#c0c7cf');
+  b.hline(4, 8, -6, '#dde3e8');
+  b.line(10, -4, 12, -6, '#c0c7cf');
+  b.hline(5, 7, -7, '#8f9aa3');
+  b.outline();
+  return { base: s };
+}
+
+function milkChurns(): BufFurniture {
+  const s = floorSheet(1, 1, 14);
+  const b = s.buf;
+  contact(b, 0, 12, 16, 3, 0.22);
+  for (const [x, top] of [[1, -4], [8, -1]] as const) {
+    b.rect(x, top + 4, 7, 12 - top - 3, '#a9b3bc');
+    b.vline(x + 1, top + 5, 12, '#d3dade');
+    b.vline(x + 6, top + 5, 12, '#7f8a94');
+    b.rect(x + 2, top, 3, 4, '#a9b3bc');
+    b.rect(x + 1, top - 1, 5, 1, '#7f8a94');
+    b.hline(x, x + 6, top + 8, '#7f8a94');
+  }
+  b.outline();
+  return { base: s };
+}
+
+function produceStand(seed: number): BufFurniture {
+  const s = floorSheet(1, 1, 22);
+  const b = s.buf;
+  const r = rng(seed + 41);
+  contact(b, 0, 12, 16, 3, 0.22);
+  b.rect(1, -18, 2, 31, WOOD.dk);
+  b.rect(13, -18, 2, 31, WOOD.dk);
+  for (let x = 0; x < 16; x += 4) b.rect(x, -20, 4, 4, x % 8 ? '#f1ede4' : '#d94848'); // toldo
+  b.hline(0, 15, -16, '#a83a3a');
+  for (const [y, c1, c2] of [[-6, '#d94848', '#f07b6e'], [4, '#ec8a3c', '#f8b26a']] as const) {
+    b.rect(2, y, 12, 5, WOOD.base);
+    b.hline(2, 13, y, WOOD.lt);
+    for (let x = 3; x < 13; x += 3) {
+      b.rect(x, y - 2, 2, 2, r() < 0.5 ? c1 : c2);
+      b.set(x, y - 2, '#ffffff');
+    }
+  }
+  b.outline();
+  return { base: s };
+}
+
+function barrelTable(): BufFurniture {
+  const s = floorSheet(1, 1, 8);
+  const b = s.buf;
+  contact(b, 1, 12, 14, 3, 0.22);
+  b.rect(4, 0, 8, 13, WOOD.base);
+  b.vline(4, 0, 12, WOOD.dk);
+  b.vline(11, 0, 12, WOOD.dk);
+  b.vline(7, 0, 12, WOOD.lt);
+  for (const y of [3, 9]) b.hline(4, 11, y, '#5d636b');
+  b.ellipse(8, 0, 7, 2, WOOD.lt);
+  b.hline(3, 12, 0, WOOD.hi);
+  b.rect(7, -4, 2, 3, '#e8dcc0');
+  b.set(7, -5, '#d94848');
+  b.set(8, -6, '#f2c443');
+  b.outline();
+  return { base: s };
+}
+
+function washStand(): BufFurniture {
+  const s = floorSheet(1, 1, 10);
+  const b = s.buf;
+  contact(b, 1, 12, 14, 3, 0.2);
+  b.rect(2, 2, 12, 2, WOOD.lt);
+  for (const x of [3, 12]) b.rect(x, 4, 1, 9, WOOD.dk);
+  b.hline(3, 12, 9, WOOD.base);
+  b.ellipse(8, 1, 6, 2, '#e8ecef');
+  b.ellipse(8, 1, 4, 1, '#9fc3dc');
+  b.rect(10, -6, 3, 6, '#d8e2ea');
+  b.set(13, -5, '#d8e2ea');
+  b.outline();
+  return { base: s };
+}
+
+function woodBench(seed: number): BufFurniture {
+  const s = floorSheet(2, 1, 4);
+  const b = s.buf;
+  contact(b, 0, 12, 32, 3, 0.2);
+  planks(b, 1, 3, 30, 4, seed);
+  for (const x of [3, 27]) b.rect(x, 7, 2, 6, WOOD.dk);
+  b.outline();
+  return { base: s };
+}
+
+function marketStall(seed: number): BufFurniture {
+  const s = floorSheet(3, 1, 18);
+  const b = s.buf;
+  const r = rng(seed + 61);
+  contact(b, 0, 12, 48, 4, 0.2);
+  b.rect(0, 0, 48, 5, WOOD.lt);
+  b.hline(0, 47, 0, WOOD.hi);
+  planks(b, 0, 5, 48, 9, seed);
+  for (let x = 3; x < 45; x += 9) {
+    b.rect(x, -4, 7, 4, '#c08a4a');
+    b.hline(x, x + 6, -4, '#e0b071');
+    for (let i = 0; i < 3; i++) {
+      const c = ['#d94848', '#f2c443', '#ec8a3c', '#77bd58', '#8d63c9'][Math.floor(r() * 5)];
+      b.rect(x + 1 + i * 2, -6, 2, 2, c);
+    }
+  }
+  b.rect(18, -16, 12, 7, '#f1ede4'); // placa
+  b.rect(19, -15, 10, 5, '#efe2c8');
+  b.hline(20, 27, -13, '#946139');
+  b.vline(19, -9, -1, WOOD.dk);
+  b.vline(28, -9, -1, WOOD.dk);
+  b.outline();
+  return { base: s };
+}
+
+/** Casinha (latrina) de madeira com lua na porta. `front`: parede da frente; porta aberta quando livre. */
+function outhouse(occupied: boolean, seed: number): BufFurniture {
+  const s = floorSheet(2, 2, 26, 3, 4);
+  const b = s.buf;
+  b.rect(1, -22, 30, 14, '#4a2f1d'); // fundo escuro
+  planks(b, 1, -22, 30, 8, seed);
+  b.rect(8, -6, 16, 6, WOOD.base); // banco
+  b.hline(8, 23, -6, WOOD.lt);
+  b.ellipse(16, -4, 3, 1, '#2a1c12');
+  for (const x of [0, 29]) {
+    b.rect(x, -24, 3, 36, WOOD.dk);
+    b.vline(x, -24, 11, WOOD.lt);
+  }
+  b.rect(-2, -27, 36, 4, '#7a4a2a'); // telhado
+  b.hline(-2, 33, -27, '#9a6236');
+  b.outline();
+  contact(b, 0, 28, 32, 4, 0.2);
+  const front = floorSheet(2, 2, 26, 3, 4);
+  const f = front.buf;
+  planks(f, 0, 9, 32, 21, seed + 3);
+  f.vline(0, 9, 29, WOOD.lt);
+  f.vline(31, 9, 29, WOOD.dd);
+  if (occupied) {
+    f.rect(8, 11, 16, 18, WOOD.lt);
+    f.vline(8, 11, 28, WOOD.dk);
+    f.vline(23, 11, 28, WOOD.dd);
+    for (const y of [14, 20, 26]) f.hline(9, 22, y, WOOD.base);
+    // lua crescente
+    f.rect(14, 13, 4, 4, '#2a1c12');
+    f.rect(15, 13, 3, 3, WOOD.lt);
+    f.set(14, 14, '#2a1c12');
+    f.rect(20, 19, 2, 2, '#3c3c40');
+  } else {
+    f.rect(8, 11, 16, 18, '#2a1c12'); // porta aberta: interior escuro
+    f.rect(23, 11, 4, 18, WOOD.lt); // folha da porta, de lado
+    f.vline(26, 11, 28, WOOD.dk);
+  }
+  f.outline();
+  return { base: s, front };
+}
+
+function build(kind: FurnitureKind, variant: string | undefined, seed: number, state = 0): BufFurniture | null {
   switch (kind) {
     case 'desk':
       return flowerBed(seed, false);
@@ -487,26 +693,51 @@ function build(kind: FurnitureKind, variant: string | undefined, seed: number): 
       return crateTable(seed);
     case 'glass_partition':
       return fence(variant);
+    case 'counter':
+      return woodCounter(seed, variant === 'drawers' ? eggBasket : jars);
+    case 'counter_sink':
+      return woodCounter(seed, basinPump, 14);
+    case 'microwave':
+      return woodCounter(seed, eggBasket);
+    case 'coffee_machine':
+      return stove(state);
+    case 'fridge':
+      return milkChurns();
+    case 'vending_machine':
+      return produceStand(seed);
+    case 'cafe_table':
+      return barrelTable();
+    case 'cafe_chair':
+      return stump();
+    case 'sink':
+      return washStand();
+    case 'bench':
+      return woodBench(seed);
+    case 'reception_desk':
+      return marketStall(seed);
+    case 'toilet_stall':
+      return outhouse(state >= 1, seed);
     default:
       return null;
   }
 }
 
 /**
- * Versão de fazenda de um móvel, ou null quando o kind fica como está (copa, banheiro, recepção, fliperama...).
- * Sem `front`: quem senta num toco ou fardo fica todo à mostra.
+ * Versão de fazenda de um móvel, ou null quando o kind fica como está (fliperama, pingue-pongue...).
+ * Sem `front` (quem senta num toco ou fardo fica todo à mostra), menos a casinha, que tem porta.
  */
-export function renderFarmFurniture(kind: FurnitureKind, variant: string | undefined, seed: number): BufFurniture | null {
-  const f = build(kind, variant, Math.abs(Math.floor(seed)) % 997);
+export function renderFarmFurniture(kind: FurnitureKind, variant: string | undefined, seed: number, state = 0): BufFurniture | null {
+  const f = build(kind, variant, Math.abs(Math.floor(seed)) % 997, state);
   if (!f) return null;
-  return { base: trim(f.base) };
+  return { base: trim(f.base), front: f.front ? trim(f.front) : undefined };
 }
 
 /** Kinds que a fazenda redesenha (para testes e para quem precisa saber se há troca). */
 export const FARM_KINDS: readonly FurnitureKind[] = [
   'desk', 'desk_back', 'office_chair', 'office_chair_front', 'stool', 'sofa', 'armchair', 'beanbag', 'plant_small', 'plant_tall',
   'bookshelf', 'filing_cabinet', 'binder_shelf', 'printer', 'trash_bin', 'water_cooler', 'floor_lamp', 'meeting_table', 'coffee_table',
-  'glass_partition',
+  'glass_partition', 'counter', 'counter_sink', 'microwave', 'coffee_machine', 'fridge', 'vending_machine', 'cafe_table', 'cafe_chair',
+  'sink', 'bench', 'reception_desk', 'toilet_stall',
 ];
 
 export type { BufSprite };

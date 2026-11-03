@@ -23,6 +23,7 @@ import { carSprite, propSprite, shadowSprite } from './props';
 import { countBadge, fallbackIcon } from './shell-sprites';
 import { decorateElevator, drawSeasonalLights, drawSeasonalWindow, seasonalCostume, seasonalFurniture } from './seasonal';
 import { farmFurniture } from './farm';
+import { FarmLife, basketLevel, drawBasket, type Animal } from './farm-life';
 import { buildAreaVis, furnitureSprites, opaqueBounds, paintShell, toWallVis, WALL_MARGIN, wallItemOrigin, wallSprites, type AreaVis, type FurnVis, type WallVis } from './scene';
 
 const enum K {
@@ -31,12 +32,13 @@ const enum K {
   Char,
   Prop,
   Car,
+  Animal,
 }
 
 interface Ent {
   k: K;
   y: number;
-  ref: FurnVis | Character | ExteriorProp | Car | null;
+  ref: FurnVis | Character | ExteriorProp | Car | Animal | null;
   area: AreaVis | null;
   scale: number;
 }
@@ -117,6 +119,7 @@ export class Renderer {
   private clearColor = '#7fae62';
   private grass: CanvasPattern | null = null;
   private theme: SeasonalTheme = 'none';
+  private farmLife = new FarmLife();
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -465,6 +468,11 @@ export class Renderer {
       }
     }
     for (const car of this.cars) if (visible(car.x - 24, car.y - 24, 48, 28)) push(K.Car, car.y, car, null, 1);
+    if (this.theme === 'farm') {
+      this.farmLife.sync(this.areas);
+      this.farmLife.update(now);
+      for (const a of this.farmLife.list()) if (visible(a.x - 16, a.y - 24, 32, 28)) push(K.Animal, a.y, a, null, 1);
+    }
     ents.sort((a, b) => a.y - b.y || a.k - b.k);
 
     this.iconCount = 0;
@@ -485,6 +493,9 @@ export class Renderer {
         case K.Car:
           this.drawCar(e.ref as Car);
           break;
+        case K.Animal:
+          this.farmLife.draw(this.ctx, e.ref as Animal, now);
+          break;
       }
     }
     this.drawPingPong(now);
@@ -498,6 +509,12 @@ export class Renderer {
     // ---- luz: noite, salas apagadas, brilhos
     this.night = this.lighting.night;
     this.drawLighting(now, vx0, vy0, vx1, vy1);
+    if (this.theme === 'farm') {
+      // vaga-lumes à noite; orvalho nas primeiras horas da manhã
+      if (this.night > 0.5) this.farmLife.drawFireflies(ctx, this.areas, now, Math.min(1, (this.night - 0.5) / 0.4));
+      const h = new Date().getHours() + new Date().getMinutes() / 60;
+      if (h >= 5.5 && h < 9.5 && this.night < 0.3) this.farmLife.drawDew(ctx, this.areas, now, Math.min(1, Math.min(h - 5.5, 9.5 - h)));
+    }
     if (this.theme !== 'none') {
       for (const vis of this.areas.values()) {
         if (vis.room && vis.room.phase !== 'ready') continue;
@@ -762,7 +779,7 @@ export class Renderer {
   private drawFurniture(f: FurnVis, area: AreaVis, scale: number, front: boolean, now: number): void {
     const { ctx } = this;
     const state = this.furnState(f, now);
-    const farm = this.theme === 'farm' ? farmFurniture(f.kind, f.variant, f.seed) : null;
+    const farm = this.theme === 'farm' ? farmFurniture(f.kind, f.variant, f.seed, state) : null;
     const fs = farm ?? furnitureSprites(this.art, f, state);
     if (!fs) return;
     const s = front ? fs.front : seasonalFurniture(this.theme, f.kind, area.layout, f.seed) ?? fs.base;
@@ -777,6 +794,12 @@ export class Renderer {
       ctx.translate(-f.ax, -f.ay);
     }
     ctx.drawImage(s.canvas, dx, dy);
+    if (farm && !front && (f.kind === 'desk' || f.kind === 'desk_back')) {
+      // cesto que enche com o trabalho de quem cuida deste canteiro
+      const owner = f.seatSpot ? this.sim.spots.ownerOf(f.seatSpot) : undefined;
+      const ch = owner ? this.sim.chars.get(owner) : undefined;
+      drawBasket(ctx, f.ax + 7, f.ay - 15, basketLevel(ch?.info.stats?.toolCalls), f.seed);
+    }
     if (!front) {
       if (f.kind === 'desk' && s.rects?.screen) {
         const r = s.rects.screen;
@@ -796,6 +819,8 @@ export class Renderer {
 
   /** Tela do monitor: segue a atividade de quem senta ali. */
   deskScreen(f: FurnVis, area: AreaVis): ScreenMode {
+    // Fazenda: canteiros não têm tela (nem brilho de monitor à noite).
+    if (this.theme === 'farm') return 'off';
     const room = area.room;
     if (room && room.light(this.sim.now) < 0.3) return 'off';
     const owner = f.seatSpot ? this.sim.spots.ownerOf(f.seatSpot) : undefined;

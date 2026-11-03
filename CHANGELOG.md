@@ -16,6 +16,9 @@ do meio (0.**3**.0).
 - **Tema Fazenda** (Configurações › Aparência › Tema do escritório): as salas viram campo, o corredor uma estrada de
   terra e as paredes um celeiro; mesas viram canteiros de flores, cadeiras tocos, sofás fardos de feno e divisórias
   cercas, e os agentes usam chapéu de palha. Só neste computador: o prédio no World continua com o visual original.
+  Na fazenda há galinhas ciscando, um cachorro na estrada de terra e um gato dormindo no feno; cada canteiro tem um
+  cesto que enche com o trabalho do agente; à noite aparecem vaga-lumes e, de manhã, orvalho na grama. A copa vira
+  cozinha de sítio, o banheiro tem casinhas de madeira e a recepção vira uma barraca de feira.
 - **Habblaud Desktop** (`desktop/`): aplicativo Windows com chat do Claude Code (imagens, vídeo, PDF e arquivos) e o
   escritório do Habblaud ao lado. Instalador em Releases › desktop-latest.
 

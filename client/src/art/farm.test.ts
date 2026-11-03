@@ -11,13 +11,14 @@ describe('tema fazenda', () => {
           const f = renderFarmFurniture(kind, variant, seed);
           expect(f, `${kind}/${variant}/${seed}`).not.toBeNull();
           expect(f!.base.buf.data.some((v, i) => i % 4 === 3 && v > 0), `${kind} vazio`).toBe(true);
-          expect(f!.front).toBeUndefined();
+          if (kind !== 'toilet_stall') expect(f!.front).toBeUndefined();
+          else expect(f!.front).toBeDefined();
         }
       }
     }
   });
 
-  it('copa, banheiro e recepção ficam como estão', () => {
-    for (const kind of ['coffee_machine', 'toilet_stall', 'reception_desk', 'arcade', 'fridge'] as const) expect(renderFarmFurniture(kind, undefined, 1)).toBeNull();
+  it('fliperama, pingue-pongue e elevador ficam como estão', () => {
+    for (const kind of ['arcade', 'pingpong_table', 'elevator'] as const) expect(renderFarmFurniture(kind, undefined, 1)).toBeNull();
   });
 });
