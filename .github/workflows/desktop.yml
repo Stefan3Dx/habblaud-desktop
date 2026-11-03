@@ -38,7 +38,7 @@ jobs:
           npm version "1.1.${{ github.run_number }}" --no-git-tag-version --allow-same-version
           npm run dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Habblaud-Setup
           path: |
