@@ -1,7 +1,7 @@
 {
   "name": "habblaud-desktop",
   "productName": "Habblaud",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "description": "Habblaud Desktop: chat Claude Code + biroul Habblaud",
   "author": "Stormvault (bazat pe Habblaud de Márcio Junior)",
@@ -17,6 +17,7 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dompurify": "^3.4.17",
+    "electron-updater": "^6.8.11",
     "ffmpeg-static": "^5.3.0",
     "marked": "^18.1.2",
     "node-pty": "^1.1.0"
@@ -73,9 +74,14 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Habblaud",
-      "artifactName": "Habblaud-Setup-${version}.${ext}"
+      "artifactName": "Habblaud-Setup.${ext}"
     },
-    "publish": null
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/Stefan3Dx/habblaud-desktop/releases/download/desktop-latest"
+      }
+    ]
   },
   "repository": {
     "type": "git",

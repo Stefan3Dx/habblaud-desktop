@@ -35,12 +35,16 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           npm install --no-audit --no-fund
+          npm version "1.1.${{ github.run_number }}" --no-git-tag-version --allow-same-version
           npm run dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: Habblaud-Setup
-          path: desktop/release/*.exe
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.blockmap
+            desktop/release/latest.yml
           if-no-files-found: error
 
       - name: Release „desktop-latest”
@@ -50,8 +54,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete desktop-latest --yes --cleanup-tag || true
-          gh release create desktop-latest desktop/release/*.exe \
+          gh release create desktop-latest desktop/release/Habblaud-Setup.exe desktop/release/Habblaud-Setup.exe.blockmap desktop/release/latest.yml \
             --target "${GITHUB_SHA}" \
             --prerelease \
             --title "Habblaud Desktop (ultima versiune)" \
-            --notes "Construit automat din ${GITHUB_SHA::7}. Descarcă Habblaud-Setup-*.exe și instalează."
+            --notes "Versiunea 1.1.${{ github.run_number }}, construită automat din ${GITHUB_SHA::7}. Descarcă Habblaud-Setup.exe și instalează; după aceea aplicația se actualizează singură."

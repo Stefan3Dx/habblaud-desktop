@@ -2,7 +2,7 @@
 <html lang="ro">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; script-src 'self'; font-src 'self' data:; frame-src http://127.0.0.1:* http://localhost:*" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; script-src 'self'; font-src 'self' data:; media-src 'self' blob: mediastream:; frame-src http://127.0.0.1:* http://localhost:*" />
     <title>Habblaud</title>
     <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="../node_modules/@highlightjs/cdn-assets/styles/github-dark.min.css" />
@@ -20,6 +20,12 @@
         <div class="search"><input id="search" placeholder="Caută conversații" spellcheck="false" /></div>
         <div id="sessions"></div>
         <div id="side-foot"></div>
+        <div id="settings-menu" class="menu" hidden>
+          <label><input type="checkbox" id="set-login" /> Pornește odată cu Windows</label>
+          <label><input type="checkbox" id="set-tray" /> La închidere rămâi lângă ceas</label>
+          <label><input type="checkbox" id="set-notify" /> Notificări Windows</label>
+          <div class="hint">Când rămâne lângă ceas, conversațiile și Habblaud merg mai departe în fundal.</div>
+        </div>
       </aside>
 
       <main id="main">
@@ -44,10 +50,18 @@
           <div id="recent-dirs"></div>
         </div>
         <footer id="composer">
+          <div id="slash" class="menu" hidden></div>
           <div id="attachments"></div>
           <textarea id="input" rows="1" placeholder="Scrie un mesaj pentru Claude…" spellcheck="false"></textarea>
           <div class="row">
-            <button id="btn-attach" class="icon" title="Atașează fișiere (sau trage / lipește)">
+            <div id="attach-menu" class="menu" hidden>
+              <button data-act="files"><span>📎</span> Fișiere și poze…</button>
+              <button data-act="region"><span>✂️</span> Captură de ecran (zonă)</button>
+              <button data-act="screen"><span>🖥️</span> Captură ecran întreg</button>
+              <button data-act="camera"><span>📷</span> Poză cu camera</button>
+              <div class="hint">Poți și să tragi fișiere oriunde în fereastră sau să lipești cu Ctrl+V.</div>
+            </div>
+            <button id="btn-attach" class="icon" title="Atașează: fișiere, captură de ecran, cameră">
               <svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5.5 5.5 0 01-7.8-7.8l9-9a3.7 3.7 0 015.2 5.2l-9 9a1.8 1.8 0 01-2.6-2.6l8.3-8.3" /></svg>
             </button>
             <select id="sel-mode" title="Permisiuni">
@@ -77,6 +91,7 @@
       <section id="panel">
         <nav id="ptabs">
           <button data-tab="habblaud" class="active">Habblaud</button>
+          <button data-tab="files">Fișiere <span id="files-count"></span></button>
           <button data-tab="terminal">Terminal</button>
           <div class="grow"></div>
           <button id="btn-reload" class="icon small" title="Reîncarcă Habblaud">
@@ -87,11 +102,26 @@
           <div id="hb-loading">Pornesc Habblaud…</div>
           <webview id="hb" allowpopups></webview>
         </div>
+        <div id="pt-files" class="pt">
+          <div id="files"></div>
+        </div>
         <div id="pt-terminal" class="pt">
           <div id="term-tabs"></div>
           <div id="term-host"></div>
         </div>
       </section>
+    </div>
+
+    <div id="camera" hidden>
+      <div class="box">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <div class="row">
+          <select id="cam-select" title="Camera"></select>
+          <div class="grow"></div>
+          <button id="cam-cancel" class="btn">Renunță</button>
+          <button id="cam-shoot" class="btn primary">Fă poza</button>
+        </div>
+      </div>
     </div>
 
     <div id="setup" hidden>

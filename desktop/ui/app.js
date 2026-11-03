@@ -25,7 +25,13 @@
     active: undefined,
     pending: [],
     lastDir: store.get('lastDir', ''),
+    commands: store.get('commands', []),
   };
+  /** Comenzi rezolvate aici, fără Claude. */
+  const LOCAL_COMMANDS = [
+    { name: 'clear', description: 'Conversație nouă, în același folder', local: true },
+    { name: 'new', description: 'Conversație nouă, în același folder', local: true },
+  ];
   let seq = 0;
   const base = (p) => (p || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p || '';
   const sameDir = (a, b) => (a || '').replace(/[\\/]+$/, '').toLowerCase() === (b || '').replace(/[\\/]+$/, '').toLowerCase();
@@ -58,6 +64,9 @@
       tools: new Map(),
       streamed: new Set(),
       allow: new Set(),
+      files: new Map(),
+      pendingEdits: new Map(),
+      badge: null,
       cur: '',
       working: null,
     };
@@ -95,6 +104,7 @@
 
   function activate(chat) {
     S.active = chat;
+    chat.badge = null;
     for (const c of S.chats.values()) c.root.classList.toggle('active', c === chat);
     document.body.classList.toggle('has-chat', !!(chat.hasMsgs || chat.sessionId));
     R.setCwd(chat.cwd);
@@ -105,6 +115,7 @@
     refreshComposer();
     renderSessions();
     renderWelcome();
+    renderFiles();
     requestAnimationFrame(() => {
       if (chat.stick) chat.root.scrollTop = chat.root.scrollHeight;
       $('#input').focus();
@@ -211,6 +222,7 @@
         if (ev.subtype === 'init') {
           chat.sessionId = ev.session_id;
           chat.modelName = ev.model;
+          for (const name of ev.slash_commands || []) if (!S.commands.some((c) => c.name === name)) S.commands.push({ name, description: '', argumentHint: '' });
         } else if (ev.subtype === 'compact_boundary') add(chat, el('div', 'msg compact', 'Conversația a fost compactată'));
         break;
       case 'stream_event':
@@ -228,6 +240,14 @@
       case 'control_request':
         if (ev.request?.subtype === 'can_use_tool') onPermission(chat, ev);
         break;
+      case 'control_response': {
+        const cmds = ev.response?.response?.commands;
+        if (Array.isArray(cmds) && cmds.length) {
+          S.commands = cmds.filter((c) => c && c.name).map((c) => ({ name: String(c.name), description: String(c.description || ''), argumentHint: String(c.argumentHint || '') }));
+          store.set('commands', S.commands);
+        }
+        break;
+      }
       default:
         break;
     }
@@ -295,6 +315,7 @@
         t.finish();
       } else if (b.type === 'tool_use') {
         ensureTool(chat, b.id, b.name, b.input).setInput(b.input, b.name);
+        if ((b.name === 'Edit' || b.name === 'MultiEdit' || b.name === 'Write' || b.name === 'NotebookEdit') && b.input) chat.pendingEdits.set(b.id, { name: b.name, input: b.input });
       }
     }
   }
@@ -307,7 +328,15 @@
       return;
     }
     if (Array.isArray(content)) {
-      for (const b of content) if (b.type === 'tool_result') chat.tools.get(b.tool_use_id)?.setResult(b.content, b.is_error);
+      for (const b of content) {
+        if (b.type !== 'tool_result') continue;
+        chat.tools.get(b.tool_use_id)?.setResult(b.content, b.is_error);
+        const pe = chat.pendingEdits.get(b.tool_use_id);
+        if (pe) {
+          chat.pendingEdits.delete(b.tool_use_id);
+          if (!b.is_error) recordEdit(chat, pe);
+        }
+      }
     }
     if (!chat.history) return;
     // Din istoric: mesajele scrise de om.
@@ -327,7 +356,8 @@
     if (meta.children.length) add(chat, meta);
     if (ev.is_error || (ev.subtype && ev.subtype !== 'success')) {
       const msg = ev.result || (ev.errors || []).join('\n') || ev.subtype;
-      if (msg && !/interrupt/i.test(msg)) add(chat, el('div', 'errbox', msg));
+      if (msg && /interrupt/i.test(msg)) add(chat, el('div', 'meta', 'Oprit de tine.'));
+      else if (msg) add(chat, el('div', 'errbox', msg));
     }
     if (/not logged in|run \/login|authentication error|invalid api key|oauth token/i.test(`${ev.result || ''} ${(ev.errors || []).join(' ')}`)) showLoginBanner();
     else if (!ev.is_error) hideBanner();
@@ -337,6 +367,7 @@
       chat.restartAfter = false;
       restartLater(chat);
     }
+    if (!chat.history) attention(chat, 'done', 'Claude a terminat', chat.title || base(chat.cwd));
     scheduleSessions();
   }
 
@@ -354,6 +385,7 @@
     const input = req.input || {};
     const reqId = ev.request_id;
     if (chat.allow.has(tool)) return answer(chat, reqId, { behavior: 'allow', updatedInput: input });
+    attention(chat, 'wait', tool === 'AskUserQuestion' ? 'Claude are o întrebare' : 'Claude are nevoie de aprobarea ta', `${chat.title || base(chat.cwd)}: ${R.describe(tool, input).name}`);
 
     const card = el('div', 'perm');
     const done = (label) => {
@@ -468,6 +500,86 @@
     card.appendChild(btns);
     add(chat, card);
     ok.focus();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Atenție: insignă în listă + notificare Windows când chat-ul nu e în față
+  // ---------------------------------------------------------------------------------------------
+
+  function attention(chat, kind, title, body) {
+    const away = chat !== S.active || !document.hasFocus();
+    if (!away) return;
+    if (chat !== S.active) chat.badge = kind;
+    renderSessions();
+    if (!store.get('notify', true)) return;
+    try {
+      const n = new Notification(title, { body, silent: kind === 'done' });
+      n.onclick = () => {
+        hb.focus();
+        activate(chat);
+      };
+    } catch {}
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Fișiere modificate în conversație (tabul „Fișiere”)
+  // ---------------------------------------------------------------------------------------------
+
+  function recordEdit(chat, { name, input }) {
+    const p = input.file_path || input.notebook_path;
+    if (!p) return;
+    let f = chat.files.get(p);
+    if (!f) chat.files.set(p, (f = { path: p, changes: [], created: false, at: 0 }));
+    f.at = Date.now();
+    if (name === 'Write') {
+      if (!f.changes.length) f.created = true;
+      f.changes.push({ write: String(input.content ?? '') });
+    } else if (name === 'MultiEdit') for (const e of input.edits || []) f.changes.push({ old: e.old_string, new: e.new_string });
+    else if (name === 'NotebookEdit') f.changes.push({ write: String(input.new_source ?? '') });
+    else f.changes.push({ old: input.old_string, new: input.new_string });
+    if (chat === S.active) renderFiles();
+  }
+
+  function renderFiles() {
+    const box = $('#files');
+    const chat = S.active;
+    const files = chat ? [...chat.files.values()].sort((a, b) => b.at - a.at) : [];
+    $('#files-count').textContent = files.length ? String(files.length) : '';
+    box.textContent = '';
+    if (!files.length) {
+      box.appendChild(el('div', 'empty', 'Fișierele pe care Claude le modifică în conversația asta apar aici, cu diferențele.'));
+      return;
+    }
+    for (const f of files) {
+      const item = el('div', 'file');
+      const head = el('div', 'fh');
+      const rel = chat.cwd && f.path.toLowerCase().startsWith(chat.cwd.toLowerCase()) ? f.path.slice(chat.cwd.length).replace(/^[\\/]+/, '') : f.path;
+      head.append(el('span', 'p', rel));
+      if (f.created) head.append(el('span', 'new', 'nou'));
+      head.append(el('span', 'n', `${f.changes.length} ${f.changes.length === 1 ? 'modificare' : 'modificări'}`));
+      const open = el('button', '', 'Deschide');
+      open.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hb.open(f.path);
+      });
+      const reveal = el('button', '', 'Folder');
+      reveal.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hb.reveal(f.path);
+      });
+      head.append(open, reveal);
+      head.addEventListener('click', () => item.classList.toggle('open'));
+      const body = el('div', 'fb');
+      for (const c of f.changes) {
+        if (c.write !== undefined) {
+          const d = el('div', 'diff');
+          for (const l of c.write.split('\n').slice(0, 400)) d.appendChild(el('div', 'add', `+ ${l}`));
+          body.appendChild(d);
+        } else body.appendChild(R.diffView(c.old, c.new));
+      }
+      item.append(head, body);
+      box.appendChild(item);
+    }
   }
 
   hb.onChatEvent((chatId, ev) => {
@@ -592,6 +704,13 @@
 
   async function sendMessage() {
     const chat = S.active || newChat();
+    if (/^\/(clear|new)\s*$/i.test(input.value.trim())) {
+      input.value = '';
+      autosize();
+      hideSlash();
+      activate(makeChat({ cwd: chat.cwd }));
+      return;
+    }
     if (chat.busy) return;
     if (S.pending.some((p) => p.loading)) return;
     const text = input.value.trim();
@@ -619,24 +738,165 @@
     renderSessions();
   }
 
+  // Comenzi cu „/”: lista vine de la Claude Code (inclusiv comenzile și skill-urile tale) + /clear.
+  const slash = $('#slash');
+  let slashItems = [];
+  let slashSel = 0;
+  function hideSlash() {
+    slash.hidden = true;
+    slashItems = [];
+  }
+  function showSlash() {
+    const m = /^\/(\S*)$/.exec(input.value);
+    if (!m) return hideSlash();
+    const q = m[1].toLowerCase();
+    const all = [...LOCAL_COMMANDS, ...S.commands.filter((c) => !LOCAL_COMMANDS.some((l) => l.name === c.name))];
+    slashItems = all
+      .filter((c) => c.name.toLowerCase().includes(q))
+      .sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
+      .slice(0, 40);
+    if (!slashItems.length) return hideSlash();
+    slashSel = Math.min(slashSel, slashItems.length - 1);
+    slash.textContent = '';
+    slashItems.forEach((c, i) => {
+      const b = el('button', i === slashSel ? 'sel' : '');
+      const name = el('b', '', `/${c.name}`);
+      if (c.argumentHint) name.appendChild(el('i', '', c.argumentHint));
+      b.appendChild(name);
+      if (c.description) b.appendChild(el('small', '', c.description));
+      b.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        pickSlash(i, false);
+      });
+      slash.appendChild(b);
+    });
+    slash.hidden = false;
+    slash.children[slashSel]?.scrollIntoView({ block: 'nearest' });
+  }
+  function pickSlash(i, run) {
+    const c = slashItems[i];
+    if (!c) return;
+    input.value = `/${c.name}${c.local || !c.argumentHint ? '' : ' '}`;
+    hideSlash();
+    autosize();
+    if (run && (c.local || !c.argumentHint)) sendMessage();
+    else input.focus();
+  }
+  input.addEventListener('input', () => {
+    slashSel = 0;
+    showSlash();
+  });
+  input.addEventListener('blur', () => setTimeout(hideSlash, 150));
+
   input.addEventListener('keydown', (e) => {
+    if (!slash.hidden && slashItems.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        slashSel = (slashSel + (e.key === 'ArrowDown' ? 1 : slashItems.length - 1)) % slashItems.length;
+        showSlash();
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        pickSlash(slashSel, e.key === 'Enter');
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        hideSlash();
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       sendMessage();
     }
   });
   input.addEventListener('paste', (e) => {
-    const files = [...(e.clipboardData?.files || [])];
+    const cd = e.clipboardData;
+    let files = [...(cd?.files || [])];
+    if (!files.length) files = [...(cd?.items || [])].filter((i) => i.kind === 'file').map((i) => i.getAsFile()).filter(Boolean);
     if (files.length) {
       e.preventDefault();
       attachFiles(files);
+      return;
+    }
+    // Captură din Windows (Win+Shift+S / PrtScn): uneori ajunge doar în clipboard-ul sistemului.
+    if (!cd?.getData('text/plain')) {
+      e.preventDefault();
+      addAttachments(hb.clipImage().then((a) => (a ? [a] : [])), ['clipboard']);
     }
   });
   $('#btn-send').addEventListener('click', () => {
     if (S.active?.busy) hb.chatInterrupt(S.active.id);
     else sendMessage();
   });
-  $('#btn-attach').addEventListener('click', async () => attachPaths(await hb.pickFiles()));
+  // Meniul de atașare: fișiere, captură de ecran (zonă / tot ecranul), poză cu camera.
+  const menu = $('#attach-menu');
+  $('#btn-attach').addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true;
+  });
+  menu.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (!act) return;
+    menu.hidden = true;
+    if (act === 'files') attachPaths(await hb.pickFiles());
+    else if (act === 'region' || act === 'screen') addAttachments(hb.capture(act).then((a) => (a ? [a] : [])), [act === 'region' ? 'captură' : 'ecran']);
+    else if (act === 'camera') openCamera();
+    input.focus();
+  });
+
+  // Camera
+  let camStream;
+  async function startCam(deviceId) {
+    camStream?.getTracks().forEach((t) => t.stop());
+    camStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId }, width: 1920, height: 1080 } : { width: 1920, height: 1080 }, audio: false });
+    $('#cam-video').srcObject = camStream;
+  }
+  async function openCamera() {
+    $('#camera').hidden = false;
+    try {
+      await startCam();
+      const sel = $('#cam-select');
+      sel.textContent = '';
+      const cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+      cams.forEach((d, i) => {
+        const o = el('option', '', d.label || `Camera ${i + 1}`);
+        o.value = d.deviceId;
+        sel.appendChild(o);
+      });
+      sel.hidden = cams.length < 2;
+    } catch (err) {
+      closeCamera();
+      if (S.active) add(S.active, el('div', 'errbox', `Camera nu a pornit: ${err.message}`));
+    }
+  }
+  function closeCamera() {
+    camStream?.getTracks().forEach((t) => t.stop());
+    camStream = undefined;
+    $('#camera').hidden = true;
+  }
+  $('#cam-select').addEventListener('change', (e) => startCam(e.target.value).catch(() => {}));
+  $('#cam-cancel').addEventListener('click', closeCamera);
+  $('#cam-shoot').addEventListener('click', () => {
+    const v = $('#cam-video');
+    if (!v.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    c.toBlob(async (blob) => {
+      closeCamera();
+      if (!blob) return;
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      addAttachments(hb.attachBuffer({ name: `poza-${Date.now()}.jpg`, mime: 'image/jpeg', bytes }).then((a) => [a]), ['poză']);
+      input.focus();
+    }, 'image/jpeg', 0.9);
+  });
   $('#sel-model').addEventListener('change', (e) => {
     store.set('model', e.target.value);
     if (S.active) {
@@ -652,31 +912,46 @@
     }
   });
 
-  // Drag & drop peste zona de chat.
-  let dragDepth = 0;
-  const main = $('#main');
-  main.addEventListener('dragenter', (e) => {
-    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  // Drag & drop oriunde în fereastră (fișiere din Explorer, poze trase din browser). Cât timp tragi, un strat
+  // acoperă tot, inclusiv panoul Habblaud, ca să prindă și picăturile de deasupra lui.
+  const droppable = (dt) => {
+    const types = [...(dt?.types || [])];
+    return types.includes('Files') || types.includes('text/uri-list') || types.includes('text/html');
+  };
+  const endDrag = () => document.body.classList.remove('dragover');
+  document.addEventListener('dragenter', (e) => {
+    if (!droppable(e.dataTransfer)) return;
     e.preventDefault();
-    dragDepth++;
     document.body.classList.add('dragover');
   });
-  main.addEventListener('dragover', (e) => e.preventDefault());
-  main.addEventListener('dragleave', () => {
-    if (--dragDepth <= 0) {
-      dragDepth = 0;
-      document.body.classList.remove('dragover');
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (droppable(e.dataTransfer)) document.body.classList.add('dragover');
+  });
+  $('#drop').addEventListener('dragleave', (e) => {
+    if (!e.relatedTarget) endDrag();
+  });
+  window.addEventListener('blur', endDrag);
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    endDrag();
+    const dt = e.dataTransfer;
+    const files = [...(dt?.files || [])];
+    if (files.length) return attachFiles(files);
+    // Imagine trasă dintr-o pagină: adresa ei.
+    let url = (dt?.getData('text/uri-list') || '').split('\n').find((l) => l && !l.startsWith('#'));
+    if (!url) {
+      const m = /<img[^>]+src="([^"]+)"/i.exec(dt?.getData('text/html') || '');
+      if (m) url = m[1];
+    }
+    if (url && /^https?:/i.test(url.trim())) addAttachments(hb.attachUrl(url.trim()).then((a) => [a]), [url.trim().split('/').pop() || 'imagine']);
+    else if (url && /^data:image\//i.test(url)) {
+      const [head, b64] = url.split(',');
+      const mime = /data:([^;]+)/.exec(head)?.[1] || 'image/png';
+      const bytes = Uint8Array.from(atob(b64 || ''), (c) => c.charCodeAt(0));
+      attachFiles([new File([bytes], `imagine.${mime.split('/')[1] || 'png'}`, { type: mime })]);
     }
   });
-  main.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dragDepth = 0;
-    document.body.classList.remove('dragover');
-    const files = [...(e.dataTransfer?.files || [])];
-    if (files.length) attachFiles(files);
-  });
-  document.addEventListener('dragover', (e) => e.preventDefault());
-  document.addEventListener('drop', (e) => e.preventDefault());
 
   // =============================================================================================
   // Bara laterală
@@ -739,6 +1014,7 @@
       if (it.chat?.alive) b.classList.add('live');
       if (it.chat?.busy) b.classList.add('live', 'busy');
       b.append(el('span', 't', it.title || 'Fără titlu'), el('span', 'p', base(it.cwd)));
+      if (it.chat?.badge) b.appendChild(el('span', `badge ${it.chat.badge}`, it.chat.badge === 'wait' ? 'te așteaptă' : 'gata'));
       b.title = `${it.title}\n${it.cwd || ''}`;
       b.addEventListener('click', () => (it.chat ? activate(it.chat) : openSession(it.s)));
       box.appendChild(b);
@@ -942,6 +1218,12 @@
     const t = el('button', '', 'Deschide un terminal');
     t.addEventListener('click', () => showTab('terminal'));
     f.appendChild(t);
+    const sb = el('button', '', 'Setări');
+    sb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSettings();
+    });
+    f.appendChild(sb);
     f.appendChild(el('span', '', `Habblaud Desktop ${S.info.version || ''}`));
   }
 
@@ -981,6 +1263,43 @@
     if (S.active && !S.active.cwd) S.active.cwd = S.info.home;
     refreshHead();
   }
+
+  // Setări (pornire cu Windows, tray, notificări)
+  const setMenu = $('#settings-menu');
+  async function openSettings() {
+    const s = await hb.settingsGet();
+    $('#set-login').checked = !!s.openAtLogin;
+    $('#set-tray').checked = !!s.keepInTray;
+    $('#set-notify').checked = store.get('notify', true);
+    setMenu.hidden = !setMenu.hidden;
+  }
+  document.addEventListener('click', (e) => {
+    if (!setMenu.hidden && !setMenu.contains(e.target)) setMenu.hidden = true;
+  });
+  $('#set-login').addEventListener('change', (e) => hb.settingsSet({ openAtLogin: e.target.checked }));
+  $('#set-tray').addEventListener('change', (e) => hb.settingsSet({ keepInTray: e.target.checked }));
+  $('#set-notify').addEventListener('change', (e) => {
+    store.set('notify', e.target.checked);
+    if (e.target.checked && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  });
+
+  // Actualizare: descărcată în fundal, instalată la un click (sau la următoarea ieșire).
+  function onUpdate(s) {
+    if (s?.state !== 'ready') return;
+    showBanner(`Versiunea nouă ${s.version || ''} e gata.`.replace('  ', ' '), 'Repornește acum', () => hb.installUpdate());
+  }
+  hb.onUpdate(onUpdate);
+  hb.updateStatus().then(onUpdate).catch(() => {});
+  hb.onNewChat(() => newChat(S.lastDir));
+
+  // Para os testes: muda o folder do chat ativo.
+  window.__setCwd = (d) => {
+    if (!S.active) return;
+    S.active.cwd = d;
+    R.setCwd(d);
+    TERM.setCwd(d);
+    refreshHead();
+  };
 
   boot();
 })();

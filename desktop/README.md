@@ -5,7 +5,7 @@ Totul pornește în fundal: serverul Habblaud, procesele `claude`, instalarea Cl
 
 ## Instalare
 
-Descarcă `Habblaud-Setup-*.exe` din [Releases → desktop-latest](../../releases/tag/desktop-latest) și instalează.
+Descarcă `Habblaud-Setup.exe` din [Releases → desktop-latest](../../releases/tag/desktop-latest) și instalează.
 
 ## Construire locală
 

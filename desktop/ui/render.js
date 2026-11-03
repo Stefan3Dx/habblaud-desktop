@@ -330,5 +330,5 @@
     };
   }
 
-  window.R = { el, md, fillMd, toolCard, describe, userMsg, userFromContent, attView, textBlock, thinkBlock, fmtSize, lightbox, setCwd: (c) => (cwdBase = c || '') };
+  window.R = { el, md, fillMd, diffView, toolCard, describe, userMsg, userFromContent, attView, textBlock, thinkBlock, fmtSize, lightbox, setCwd: (c) => (cwdBase = c || '') };
 })();

@@ -244,3 +244,54 @@ body.dragging webview, body.dragging #term-host { pointer-events: none; }
 #setup pre { margin: 0; height: 240px; overflow: auto; background: var(--code); border-radius: 10px; padding: 10px 12px; font: 12px/1.5 'Cascadia Code', Consolas, monospace; color: var(--text2); white-space: pre-wrap; }
 #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; z-index: 60; cursor: zoom-out; }
 #lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 8px; }
+
+/* ---------- Meniu atașare, cameră ---------- */
+#composer { position: relative; }
+.menu { position: absolute; left: 8px; bottom: 52px; z-index: 20; background: #2b2b29; border: 1px solid var(--line); border-radius: 12px; padding: 6px; min-width: 270px; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+.menu[hidden] { display: none; }
+.menu button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 10px; border-radius: 8px; color: var(--text); }
+.menu button:hover { background: var(--surface2); }
+.menu .hint { color: var(--muted); font-size: 12px; padding: 6px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; }
+#camera { position: fixed; inset: 0; background: rgba(15,15,14,.85); display: flex; align-items: center; justify-content: center; z-index: 55; }
+#camera[hidden] { display: none; }
+#camera .box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; width: min(760px, 92vw); display: flex; flex-direction: column; gap: 10px; }
+#camera video { width: 100%; border-radius: 10px; background: #000; aspect-ratio: 16 / 9; object-fit: cover; }
+#camera .row { display: flex; gap: 8px; align-items: center; }
+#camera select { background: var(--surface2); border: 0; border-radius: 8px; padding: 6px 8px; color: var(--text); max-width: 50%; }
+body.dragover #drop { pointer-events: auto; }
+#drop { position: fixed; inset: 10px; z-index: 40; }
+
+/* ---------- Comenzi / ---------- */
+#slash { left: 8px; right: 8px; bottom: calc(100% + 6px); max-height: 300px; overflow-y: auto; }
+#slash button { flex-direction: column; align-items: flex-start; gap: 0; }
+#slash button.sel { background: var(--surface2); }
+#slash b { font-family: 'Cascadia Code', Consolas, monospace; font-weight: 600; font-size: 13px; }
+#slash b i { color: var(--muted); font-style: normal; font-weight: 400; margin-left: 6px; }
+#slash small { color: var(--muted); font-size: 12px; }
+
+/* ---------- Fișiere modificate ---------- */
+#pt-files { overflow-y: auto; }
+#files { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+#files .empty { color: var(--muted); text-align: center; padding: 40px 20px; }
+#files .file { border: 1px solid var(--line); border-radius: 10px; background: #262624; overflow: hidden; }
+#files .fh { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; }
+#files .fh:hover { background: #2c2c2a; }
+#files .fh .p { flex: 1; min-width: 0; font-family: 'Cascadia Code', Consolas, monospace; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+#files .fh .n { color: var(--muted); font-size: 12px; }
+#files .fh .new { color: var(--ok); font-size: 11px; border: 1px solid #3c5a3e; border-radius: 6px; padding: 0 5px; }
+#files .fh button { color: var(--text2); font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+#files .fh button:hover { background: var(--surface2); color: var(--text); }
+#files .fb { display: none; padding: 0 10px 10px; flex-direction: column; gap: 8px; }
+#files .file.open .fb { display: flex; }
+#files-count { color: var(--accent); font-size: 12px; }
+
+/* ---------- Insigne în listă ---------- */
+.sess .badge { position: absolute; right: 8px; top: 9px; font-size: 11px; padding: 0 6px; border-radius: 8px; }
+.sess .badge.done { background: #2f4a31; color: #b3f0bd; }
+.sess .badge.wait { background: #5a4422; color: #ffd98c; }
+
+#sidebar { position: relative; }
+#settings-menu { left: 10px; right: 10px; bottom: 96px; }
+#settings-menu label { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+#settings-menu label:hover { background: var(--surface2); }
+#settings-menu input { accent-color: var(--accent); width: 15px; height: 15px; }
