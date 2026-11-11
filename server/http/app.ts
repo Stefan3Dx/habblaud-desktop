@@ -22,9 +22,12 @@ import { AUDIO_BODY_MAX, type DictationService } from '../dictation/dictation';
 import type { DeliveryIndex } from '../deliveries/deliveries';
 import type { FileFetcher } from '../deliveries/fetcher';
 import { HOST_WAIT_MS } from '../host-wait';
+import type { ResourceMonitor } from '../resources';
 
 export interface ApiDeps {
   office: Office;
+  /** CPU/memória do PC e de cada agente (GET /api/resources, server/resources.ts). */
+  resources?: ResourceMonitor;
   hub: Hub;
   accounts: AccountsService;
   sources: () => SourceInfo[];
@@ -401,6 +404,17 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
           world: !!deps.world && !!deps.terminal && !remote && isLoopbackHost(req.headers.host),
         };
         sendJson(res, 200, access);
+      }
+      return true;
+    }
+    if (path === '/api/resources') {
+      if (!isRead) methodNotAllowed(res, 'GET');
+      else if (!deps.resources) sendJson(res, 404, { error: tr('recursos indisponíveis') });
+      else {
+        deps.resources.get().then(
+          (r) => sendJson(res, 200, r),
+          () => sendJson(res, 500, { error: tr('não foi possível ler os recursos do computador') }),
+        );
       }
       return true;
     }

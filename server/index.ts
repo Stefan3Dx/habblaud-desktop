@@ -8,6 +8,7 @@ import { codexDirsRefused, isDefaultDir } from './accounts/detect';
 import { AccountsService } from './accounts/service';
 import { isTruthy, loadConfig, messagesOffReason, terminalOffReason, worldSocketUrl } from './config';
 import { createApiHandler, sendJson } from './http/app';
+import { ResourceMonitor } from './resources';
 import { createRequestGuard, isLoopbackHost } from './http/guard';
 import { createRemoteGate, isRemoteRequest, loadSecret, RemoteSessions, startRemoteListener, type RemoteListener } from './http/remote';
 import { Hub } from './http/sse';
@@ -338,7 +339,9 @@ const ticker = setInterval(() => {
   }
 }, 250);
 
+const resources = new ResourceMonitor(() => hub.current().agents);
 const api = createApiHandler({
+  resources,
   renameRoom: (id, name) => {
     const path = office.roomPath(id);
     if (!path) return undefined;

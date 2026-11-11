@@ -22,6 +22,25 @@ export function start(): void {
 
   const params = new URLSearchParams(location.search);
   const store = new OfficeStore({ mock: params.has('mock') });
+  // Vista "Escritório simples" (?view=desk): só as mesas dos agentes e os recursos do computador. A escolha fica
+  // guardada (?view=office volta para o prédio completo).
+  const storage = safeLocalStorage();
+  const viewParam = params.get('view');
+  if (viewParam === 'desk' || viewParam === 'office') {
+    try {
+      storage?.setItem('habblaud:view', viewParam);
+    } catch {
+      /* armazenamento cheio ou bloqueado */
+    }
+  }
+  if ((viewParam ?? storage?.getItem('habblaud:view')) === 'desk') {
+    void import('./desk/desk').then((m) => {
+      m.startDesk(store, document.getElementById('ui') as HTMLElement);
+      if (store.mock) store.connect();
+      else void loadAccess().finally(() => store.connect());
+    });
+    return;
+  }
   const worldCanvas = document.getElementById('world') as HTMLCanvasElement;
   const uiRoot = document.getElementById('ui') as HTMLElement;
   const world = createWorld(worldCanvas, store);

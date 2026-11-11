@@ -1168,10 +1168,26 @@
   $('#btn-reload').addEventListener('click', async () => {
     const r = await hb.server();
     if (r.ok) {
+      hbUrl = r.url;
       if (wv.getURL && wv.getURL().startsWith(r.url)) wv.reload();
-      else wv.src = r.url;
+      else wv.src = viewUrl();
       $('#hb-loading').style.display = 'none';
     }
+  });
+
+  // Vista Habblaud: birou simplu (agenții la mese + resursele PC-ului) sau clădirea completă.
+  let hbUrl = '';
+  const hbView = () => store.get('hbView', 'desk');
+  const viewUrl = () => `${hbUrl}/?view=${hbView()}`;
+  const viewLabel = () => {
+    $('#btn-view').textContent = hbView() === 'desk' ? 'Clădirea completă' : 'Birou simplu';
+  };
+  viewLabel();
+  $('#btn-view').addEventListener('click', () => {
+    store.set('hbView', hbView() === 'desk' ? 'office' : 'desk');
+    viewLabel();
+    showTab('habblaud');
+    if (hbUrl) wv.src = viewUrl();
   });
 
   async function startServer() {
@@ -1179,7 +1195,8 @@
     const r = await hb.server();
     if (r.ok) {
       l.style.display = 'none';
-      wv.src = r.url;
+      hbUrl = r.url;
+      wv.src = viewUrl();
     } else {
       l.textContent = r.msg;
       l.classList.add('err');

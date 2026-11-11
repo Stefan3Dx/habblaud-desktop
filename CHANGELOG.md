@@ -13,6 +13,9 @@ do meio (0.**3**.0).
 ### Adicionado
 
 - **Interface em romeno** (Configurações › Idioma › Română).
+- **Escritório simples** (`?view=desk`, ou Configurações › Aparência › Vista): só os agentes, cada um na sua mesa, com
+  o que fazem e quanto de CPU e memória do computador cada um usa (o processo do `claude` e tudo o que ele abriu), e no
+  topo o PC inteiro — CPU, RAM, GPU NVIDIA — e o uso do plano. Os números vêm de `GET /api/resources`.
 - **Tema Fazenda** (Configurações › Aparência › Tema do escritório): as salas viram campo, o corredor uma estrada de
   terra e as paredes um celeiro; mesas viram canteiros de flores, cadeiras tocos, sofás fardos de feno e divisórias
   cercas, e os agentes usam chapéu de palha. Só neste computador: o prédio no World continua com o visual original.
