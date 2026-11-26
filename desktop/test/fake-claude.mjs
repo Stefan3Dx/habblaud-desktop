@@ -42,20 +42,23 @@ async function streamText(id, text) {
   }
   out({ type: 'stream_event', event: { type: 'content_block_stop', index: 0 }, parent_tool_use_id: null });
   const msg = { id, role: 'assistant', content: [{ type: 'text', text }] };
-  out({ type: 'assistant', message: msg, parent_tool_use_id: null });
-  log({ type: 'assistant', message: msg });
+  const uuid = randomUUID();
+  out({ type: 'assistant', message: msg, parent_tool_use_id: null, uuid });
+  log({ type: 'assistant', message: msg, uuid });
 }
 
 async function toolUse(id, name, input) {
   const msg = { id: `msg_${id}`, role: 'assistant', content: [{ type: 'tool_use', id, name, input }] };
-  out({ type: 'assistant', message: msg, parent_tool_use_id: null });
-  log({ type: 'assistant', message: msg });
+  const uuid = randomUUID();
+  out({ type: 'assistant', message: msg, parent_tool_use_id: null, uuid });
+  log({ type: 'assistant', message: msg, uuid });
 }
 
 function toolResult(id, content, is_error = false) {
   const msg = { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content, is_error }] };
-  out({ type: 'user', message: msg, parent_tool_use_id: null });
-  log({ type: 'user', message: msg });
+  const uuid = randomUUID();
+  out({ type: 'user', message: msg, parent_tool_use_id: null, uuid });
+  log({ type: 'user', message: msg, uuid });
 }
 
 function result(extra = {}) {
@@ -64,7 +67,7 @@ function result(extra = {}) {
 
 async function onUser(message) {
   interrupted = false;
-  log({ type: 'user', message });
+  log({ type: 'user', message, uuid: randomUUID() });
   const content = Array.isArray(message.content) ? message.content : [{ type: 'text', text: String(message.content) }];
   const text = content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
   const images = content.filter((b) => b.type === 'image').length;

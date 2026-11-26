@@ -118,8 +118,7 @@ function events({ token = ctl.token } = {}) {
   assert.strictEqual(c.status, 200, JSON.stringify(c.json));
   const chatId = c.json.chatId;
   await ev.waitFor((e) => e.type === 'event' && e.chatId === chatId && e.event.type === 'result');
-  const shown = await win.evaluate(() => document.querySelector('.msgs.active')?.innerText || '');
-  assert.ok(shown.includes('salut din Fleet'), 'the remote message is shown in the active tab');
+  await win.waitForFunction(() => (document.querySelector('.msgs.active')?.innerText || '').includes('salut din Fleet'), null, { timeout: 5000 }) // the remote message is shown in the active tab
   await win.screenshot({ path: path.join(shots, 'c1-remote-session.png') });
   const list = await req('GET', '/v1/sessions');
   const me = list.json.sessions.find((s) => s.chatId === chatId);
