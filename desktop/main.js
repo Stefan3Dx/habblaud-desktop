@@ -14,6 +14,7 @@ const { ClaudeChat } = require('./lib/claude');
 const settings = require('./lib/settings');
 const tray = require('./lib/tray');
 const updater = require('./lib/updater');
+const { setupRemote } = require('./lib/remote');
 
 const startHidden = process.argv.includes('--hidden');
 
@@ -30,9 +31,14 @@ const log = (text) => send('setup:log', text);
 // Chat
 // ---------------------------------------------------------------------------------------------
 
+// Claude Fleet drives Habblaud through a local control API (lib/control.js, lib/remote.js)
+const remote = setupRemote({ app, ipcMain, chats, send, showWindow: () => showWindow(), history, log: (t) => console.log(t) });
+
 ipcMain.handle('chat:open', (_e, { chatId, cwd, model, mode, resume }) => {
   const claude = setup.findClaude();
   if (!claude) return { error: 'Claude Code nu e instalat încă.' };
+  const refused = remote.checkOpen(chatId, { cwd, model, mode, resume });
+  if (refused) return { error: refused };
   chats.get(chatId)?.kill();
   const c = new ClaudeChat({
     claude,
@@ -40,19 +46,34 @@ ipcMain.handle('chat:open', (_e, { chatId, cwd, model, mode, resume }) => {
     model,
     mode,
     resume,
-    onEvent: (ev) => send('chat:event', chatId, ev),
-    onExit: (info) => send('chat:exit', chatId, info),
+    onEvent: (ev) => {
+      send('chat:event', chatId, ev);
+      remote.event(chatId, ev);
+    },
+    onExit: (info) => {
+      send('chat:exit', chatId, info);
+      remote.exited(chatId);
+    },
   });
   chats.set(chatId, c);
   c.start();
+  remote.opened(chatId);
   return { ok: true };
 });
-ipcMain.handle('chat:send', (_e, chatId, content) => !!chats.get(chatId)?.send(content));
-ipcMain.on('chat:answer', (_e, chatId, requestId, result) => chats.get(chatId)?.answer(requestId, result));
+ipcMain.handle('chat:send', (_e, chatId, content) => {
+  const ok = !!chats.get(chatId)?.send(content);
+  if (ok) remote.sending(chatId);
+  return ok;
+});
+ipcMain.on('chat:answer', (_e, chatId, requestId, result) => {
+  // first answer wins: an approval already given from Fleet is not answered twice
+  if (remote.answeredInUi(chatId, requestId, result)) chats.get(chatId)?.answer(requestId, result);
+});
 ipcMain.on('chat:interrupt', (_e, chatId) => chats.get(chatId)?.interrupt());
 ipcMain.on('chat:close', (_e, chatId) => {
   chats.get(chatId)?.kill();
   chats.delete(chatId);
+  remote.closed(chatId);
 });
 
 ipcMain.handle('history:list', () => history.list());
@@ -272,6 +293,7 @@ function quit() {
 }
 
 function shutdown() {
+  remote.stop();
   for (const c of chats.values()) c.kill();
   chats.clear();
   term.killAll();
@@ -303,6 +325,7 @@ else {
       });
     } catch {}
     updater.start((s) => send('update', s));
+    remote.start();
   });
   app.on('window-all-closed', () => {
     shutdown();

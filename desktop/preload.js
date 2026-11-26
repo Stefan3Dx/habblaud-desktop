@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld('hb', {
   chatClose: (id) => ipcRenderer.send('chat:close', id),
   onChatEvent: (fn) => on('chat:event', fn),
   onChatExit: (fn) => on('chat:exit', fn),
+  chatMeta: (id, patch) => ipcRenderer.send('chat:meta', id, patch),
+  // Claude Fleet (control API): actions run through the window's own code, results go back to the main process
+  onRemoteCommand: (fn) => on('remote:command', fn),
+  remoteResult: (r) => ipcRenderer.send('remote:result', r),
+  onRemotePermResolved: (fn) => on('remote:permResolved', fn),
 
   historyList: () => ipcRenderer.invoke('history:list'),
   historyLoad: (file) => ipcRenderer.invoke('history:load', file),

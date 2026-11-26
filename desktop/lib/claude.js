@@ -39,7 +39,8 @@ class ClaudeChat {
     const isCmd = IS_WIN && /\.(cmd|bat)$/i.test(o.claude);
     this.proc = spawn(isCmd ? `"${o.claude}"` : o.claude, args, {
       cwd: o.cwd,
-      env: cleanEnv({ HABBLAUD_NO_PERMISSION_HOOK: '1' }),
+      // both hooks stay out: permissions are answered here (and through the control API by Claude Fleet)
+      env: cleanEnv({ HABBLAUD_NO_PERMISSION_HOOK: '1', FLEET_NO_PERMISSION_HOOK: '1' }),
       windowsHide: true,
       shell: isCmd,
       stdio: ['pipe', 'pipe', 'pipe'],

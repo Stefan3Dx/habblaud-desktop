@@ -172,6 +172,8 @@
     c.root.scrollTop = c.root.scrollHeight;
   }
 
+  const pushMeta = (chat) => hb.chatMeta?.(chat.id, { title: chat.title || '', cwd: chat.cwd || '', model: chat.model || '', mode: chat.mode || 'default' });
+
   async function ensureProc(chat) {
     if (chat.alive) return true;
     const r = await hb.chatOpen({ chatId: chat.id, cwd: chat.cwd, model: chat.model, mode: chat.mode, resume: chat.sessionId });
@@ -180,6 +182,7 @@
       return false;
     }
     chat.alive = true;
+    pushMeta(chat);
     refreshHead();
     return true;
   }
@@ -362,6 +365,7 @@
     if (/not logged in|run \/login|authentication error|invalid api key|oauth token/i.test(`${ev.result || ''} ${(ev.errors || []).join(' ')}`)) showLoginBanner();
     else if (!ev.is_error) hideBanner();
     if (!chat.title && chat.firstText) chat.title = chat.firstText.slice(0, 80);
+    pushMeta(chat);
     refreshHead();
     if (chat.restartAfter) {
       chat.restartAfter = false;
@@ -389,9 +393,12 @@
 
     const card = el('div', 'perm');
     const done = (label) => {
+      if (card.classList.contains('done')) return;
       card.classList.add('done');
       card.appendChild(el('div', 'meta', label));
+      chat.permCards?.delete(reqId);
     };
+    (chat.permCards ||= new Map()).set(reqId, done);
 
     if (tool === 'AskUserQuestion') {
       const answers = {};
@@ -737,6 +744,73 @@
     refreshHead();
     renderSessions();
   }
+
+  /** A message from Claude Fleet: shown and sent like one typed here (also while Claude works – it queues). */
+  async function remoteSend(chat, text) {
+    if (!chat.title) chat.title = text.replace(/\s+/g, ' ').slice(0, 80);
+    chat.stick = true;
+    add(chat, R.userMsg(text, []));
+    if (chat === S.active) document.body.classList.add('has-chat');
+    renderWelcome();
+    setBusy(chat, true);
+    if (!(await ensureProc(chat))) {
+      setBusy(chat, false);
+      throw new Error('Claude Code nu a pornit');
+    }
+    const ok = await hb.chatSend(chat.id, buildContent(text, []));
+    if (!ok) {
+      setBusy(chat, false);
+      add(chat, el('div', 'errbox', 'Nu am putut trimite mesajul (Claude Code nu rulează).'));
+      throw new Error('Claude Code nu rulează');
+    }
+    pushMeta(chat);
+    refreshHead();
+    renderSessions();
+  }
+
+  hb.onRemoteCommand?.(async ({ rid, op, args }) => {
+    const done = (result) => hb.remoteResult({ rid, ok: true, result });
+    const fail = (e, status, code) => hb.remoteResult({ rid, ok: false, error: e?.message || String(e), status, code });
+    try {
+      if (op === 'create') {
+        const c = makeChat({ cwd: args.cwd });
+        if (args.model) c.model = args.model;
+        if (args.mode) c.mode = args.mode;
+        S.lastDir = args.cwd;
+        activate(c); // new tab, in front
+        pushMeta(c);
+        if (args.prompt) await remoteSend(c, args.prompt);
+        return done({ chatId: c.id });
+      }
+      if (op === 'activate') {
+        const c = S.chats.get(args.chatId);
+        if (!c) return fail(new Error('Chat necunoscut'), 404, 'not_found');
+        activate(c);
+        return done({ chatId: c.id });
+      }
+      if (op === 'openSession') {
+        await openSession(args);
+        const c = [...S.chats.values()].find((x) => x.sessionId === args.sessionId);
+        if (!c) return fail(new Error('Nu am putut deschide conversația'), 500, 'open_failed');
+        pushMeta(c);
+        return done({ chatId: c.id });
+      }
+      if (op === 'send') {
+        const c = S.chats.get(args.chatId);
+        if (!c) return fail(new Error('Chat necunoscut'), 404, 'not_found');
+        await remoteSend(c, args.text);
+        return done({ chatId: c.id });
+      }
+      fail(new Error(`operație necunoscută: ${op}`), 400, 'bad_op');
+    } catch (e) {
+      fail(e);
+    }
+  });
+  // an approval answered in Fleet: close its card here
+  hb.onRemotePermResolved?.((chatId, requestId, label) => {
+    const c = S.chats.get(chatId);
+    c?.permCards?.get(requestId)?.(label);
+  });
 
   // Comenzi cu „/”: lista vine de la Claude Code (inclusiv comenzile și skill-urile tale) + /clear.
   const slash = $('#slash');
