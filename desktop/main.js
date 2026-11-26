@@ -62,7 +62,7 @@ ipcMain.handle('chat:open', (_e, { chatId, cwd, model, mode, resume }) => {
 });
 ipcMain.handle('chat:send', (_e, chatId, content) => {
   const ok = !!chats.get(chatId)?.send(content);
-  if (ok) remote.sending(chatId);
+  if (ok) remote.sending(chatId, content);
   return ok;
 });
 ipcMain.on('chat:answer', (_e, chatId, requestId, result) => {

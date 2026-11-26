@@ -50,6 +50,7 @@ function setupRemote({ app, ipcMain, chats, send, showWindow, history, log = () 
     return meta.get(chatId);
   };
   let control = null;
+  let creating = 0; // a create with a prompt in flight: its first message counts as sent through the API
   const emit = (obj) => control?.broadcast(obj);
   const pub = (x) => ({
     chatId: x.chatId, claudeSessionId: x.claudeSessionId, cwd: x.cwd, title: x.title, model: x.model || null, mode: x.mode || 'default',
@@ -98,7 +99,13 @@ function setupRemote({ app, ipcMain, chats, send, showWindow, history, log = () 
       const cwd = String(b.cwd || '');
       if (!cwd || !fs.existsSync(cwd)) throw new HttpError(400, 'bad_cwd', `Folderul nu există: ${cwd || '(gol)'}`);
       showWindow(); // decision: a session started from Fleet opens as a new tab and takes focus
-      const r = await remote('create', { cwd, model: b.model || '', mode: b.mode || 'default', prompt: typeof b.prompt === 'string' ? b.prompt : '' });
+      creating++;
+      let r;
+      try {
+        r = await remote('create', { cwd, model: b.model || '', mode: b.mode || 'default', prompt: typeof b.prompt === 'string' ? b.prompt : '' });
+      } finally {
+        creating--;
+      }
       return { chatId: r.chatId, session: meta.has(r.chatId) ? pub(meta.get(r.chatId)) : null };
     },
     async open(id) {
@@ -120,7 +127,12 @@ function setupRemote({ app, ipcMain, chats, send, showWindow, history, log = () 
       if (!x) throw new HttpError(404, 'not_found', 'Chat necunoscut');
       const text = String(b.text || '').trim();
       if (!text) throw new HttpError(400, 'empty');
-      await remote('send', { chatId: x.chatId, text });
+      x.remoteSending = true;
+      try {
+        await remote('send', { chatId: x.chatId, text });
+      } finally {
+        x.remoteSending = false;
+      }
       return { ok: true, chatId: x.chatId };
     },
     async interrupt(id) {
@@ -195,8 +207,11 @@ function setupRemote({ app, ipcMain, chats, send, showWindow, history, log = () 
         emit({ type: 'perm_req', chatId, claudeSessionId: x.claudeSessionId, requestId: ev.request_id, ...p });
       }
     },
-    sending(chatId) {
+    sending(chatId, content) {
       const x = m(chatId);
+      // what was typed (prompts are not echoed by Claude's stream): source api = sent through this API, ui = typed here
+      const text = Array.isArray(content) ? content.filter((b) => b && b.type === 'text').map((b) => b.text).join('\n') : String(content || '');
+      emit({ type: 'user_input', chatId, claudeSessionId: x.claudeSessionId, text, images: Array.isArray(content) ? content.filter((b) => b && b.type === 'image').length : 0, source: x.remoteSending || creating ? 'api' : 'ui' });
       if (!x.busy) {
         x.busy = true;
         emit({ type: 'chat_state', session: pub(x) });

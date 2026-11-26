@@ -125,6 +125,14 @@ function events({ token = ctl.token } = {}) {
   const me = list.json.sessions.find((s) => s.chatId === chatId);
   assert.ok(me && me.claudeSessionId && me.cwd === project && me.busy === false, `listed: ${JSON.stringify(me)}`);
   console.log('ok create: tab + message + listed', me.claudeSessionId);
+  const ui0 = await ev.waitFor((e) => e.type === 'user_input' && e.chatId === chatId);
+  assert.strictEqual(ui0.source, 'api', 'a prompt sent through the API is tagged api');
+  await win.fill('#input', 'scris in fereastra');
+  await win.press('#input', 'Enter');
+  const ui1 = await ev.waitFor((e) => e.type === 'user_input' && e.text === 'scris in fereastra');
+  assert.strictEqual(ui1.source, 'ui', 'a prompt typed in the window is tagged ui');
+  await ev.waitFor((e) => e.type === 'event' && e.chatId === chatId && e.event.type === 'result' && ev.got.indexOf(e) > ev.got.indexOf(ui1));
+  console.log('ok user_input: api vs ui');
   assert.strictEqual((await req('POST', '/v1/sessions', { body: { cwd: path.join(home, 'nu-exista') } })).status, 400, 'missing cwd -> 400');
 
   // ---- permission answered from the API: card closes in the window, second answer refused
