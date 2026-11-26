@@ -160,6 +160,10 @@ function setupRemote({ app, ipcMain, chats, send, showWindow, history, log = () 
     async start() {
       const file = process.env.HABBLAUD_CONTROL_FILE || path.join(app.getPath('userData'), 'control.json');
       control = createControl({ file, version: app.getVersion(), handlers, log });
+      // stays after exit: tells the Fleet agent this installed Habblaud has the control API (worth starting it hidden)
+      try {
+        fs.writeFileSync(path.join(path.dirname(file), 'control-capable.json'), JSON.stringify({ api: 'v1', version: app.getVersion() }));
+      } catch {}
       try {
         await control.start();
       } catch (e) {
